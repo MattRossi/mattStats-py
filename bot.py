@@ -111,14 +111,24 @@ async def checkRegs(ctx, arg1):
 
             if arg1 == 'all':
                 countDocs = db.messages.count_documents({'user_id': str(userID)})
-                overallMessage.append(f'Number of messages (all-time) by {discordUser} ({userID}): {countDocs} \n')
+                nameTime = 'Not Found'
+                if (discordUser == None):
+                    nameTime = 'Not Found'
+                else:
+                    nameTime = discordUser.name
+                overallMessage.append(f'Number of messages (all-time) by {nameTime} ({userID}): {countDocs} \n')
             elif arg1 == 'this-month':
                 currentYear = datetime.now().year
                 currentMonth = datetime.now().month
                 lastDay = calendar.monthrange(datetime.now().year, datetime.now().month)[1]
                 countDocs = db.messages.count_documents({'user_id': str(userID), 'created_at': {'$gte': datetime(currentYear, currentMonth, 1), '$lt': datetime(currentYear, currentMonth, lastDay)}})
                 overallMessage.append(f'Number of messages (current month) by {discordUser} ({userID}): {countDocs} \n')
-                df = df.append({'Username': str(discordUser.name), 'DiscordID': str(userID), 'MessageCount': int(countDocs)}, ignore_index=True)
+                nameTime = 'Not Found'
+                if (discordUser == None):
+                    nameTime = 'Not Found'
+                else:
+                    nameTime = discordUser.name
+                df = df.append({'Username': str(nameTime), 'DiscordID': str(userID), 'MessageCount': int(countDocs)}, ignore_index=True)
             elif arg1 == 'last-month':
                 currentYear = datetime.now().year
                 currentMonth = datetime.now().month
@@ -133,7 +143,12 @@ async def checkRegs(ctx, arg1):
                 lastDay = calendar.monthrange(lastMonthsYear, lastMonth)[1]
                 countDocs = db.messages.count_documents({'user_id': str(userID), 'created_at': {'$gte': datetime(lastMonthsYear, lastMonth, 1), '$lt': datetime(lastMonthsYear, lastMonth, lastDay)}})
                 overallMessage.append(f'Number of messages (last month) by {discordUser} ({userID}): {countDocs} \n')
-                df = df.append({'Username': str(discordUser.name), 'DiscordID': str(userID), 'MessageCount': int(countDocs)}, ignore_index=True)
+                nameTime = 'Not Found'
+                if (discordUser == None):
+                    nameTime = 'Not Found'
+                else:
+                    nameTime = discordUser.name
+                df = df.append({'Username': str(nameTime), 'DiscordID': str(userID), 'MessageCount': int(countDocs)}, ignore_index=True)
         finalMessage = ''
         for line in overallMessage:
             finalMessage += line
