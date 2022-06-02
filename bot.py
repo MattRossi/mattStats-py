@@ -205,13 +205,13 @@ async def graduation(ctx):
         # jr-high -> Stays the same, no automated action needed
         # senior -> Rename to class-of-2022
         # TODO Add automation to move this to the Archive category
-        bot.get_guild(MBD_GUILD_ID).get_channel(MBD_SENIOR_CHANNEL_ID).edit(name='class-of-2022')
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_SENIOR_CHANNEL_ID).edit(name='class-of-2022')
         # junior -> Rename to senior
-        bot.get_guild(MBD_GUILD_ID).get_channel(MBD_JUNIOR_CHANNEL_ID).edit(name='senior')
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_JUNIOR_CHANNEL_ID).edit(name='senior')
         # sophomore -> rename to junior
-        bot.get_guild(MBD_GUILD_ID).get_channel(MBD_SOPHOMORE_CHANNEL_ID).edit(name='junior')
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_SOPHOMORE_CHANNEL_ID).edit(name='junior')
         # freshman -> rename to sophomore
-        bot.get_guild(MBD_GUILD_ID).get_channel(MBD_FRESHMAN_CHANNEL_ID).edit(name='sophomore')
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_FRESHMAN_CHANNEL_ID).edit(name='sophomore')
         # MANUAL ACTION -> Create new channel for rising freshmen
         # TODO make this automated
         await ctx.send('Renamed channels')
@@ -219,15 +219,15 @@ async def graduation(ctx):
         # Rename roles
         # TODO make this more dynamic
         # Junior - 202X -> Senior - 202X
-        bot.get_guild(MBD_GUILD_ID).get_role(MBD_JUNIOR_ROLE_ID).edit(name='Senior - 2023')
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_JUNIOR_ROLE_ID).edit(name='Senior - 2023')
         # Sophomore - 202X -> Junior - 202X
-        bot.get_guild(MBD_GUILD_ID).get_role(MBD_SOPHOMORE_ROLE_ID).edit(name='Junior - 2024')
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_SOPHOMORE_ROLE_ID).edit(name='Junior - 2024')
         # Freshman - 202X -> Sophomore - 202X
-        bot.get_guild(MBD_GUILD_ID).get_role(MBD_FRESHMAN_ROLE_ID).edit(name='Sophomore - 2025')
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_FRESHMAN_ROLE_ID).edit(name='Sophomore - 2025')
         # 8th Grader - 202X -> Freshman - 202X
-        bot.get_guild(MBD_GUILD_ID).get_role(MBD_EIGHTH_GRADER_ROLE_ID).edit(name='Freshmen - 2026')
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_EIGHTH_GRADER_ROLE_ID).edit(name='Freshmen - 2026')
         # 7th Grader - 202X -> 8th Grader - 202X
-        bot.get_guild(MBD_GUILD_ID).get_role(MBD_SEVENTH_GRADER_ROLE_ID).edit(name='8th Grader - 2027')
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_SEVENTH_GRADER_ROLE_ID).edit(name='8th Grader - 2027')
         await ctx.send('Renamed roles')
 
         # Move all Seniors to Graduate role
@@ -236,8 +236,10 @@ async def graduation(ctx):
         graduate_role = ctx.guild.get_role(int(MBD_GRADUATE_ROLE_ID))
         senior_count = 0
         for senior in seniors:
-            await senior.add_roles(graduate_role)
-            senior_count += 1
+            if graduate_role not in senior.roles:
+                await senior.add_roles(graduate_role)
+                senior_count += 1
+            print(str(senior_count))
         await ctx.send('Graduated ' + str(senior_count) + ' senior(s)')
 
 @bot.event
