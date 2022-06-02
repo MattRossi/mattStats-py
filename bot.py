@@ -9,13 +9,31 @@ import configparser
 
 config = configparser.ConfigParser()
 config.read('config.properties')
+
 MONGO_DB_URL = config['MONGO']['DB_URL']
+
 DISCORD_COMMAND_PREFIX = config['DISCORD']['COMMAND_PREFIX']
 DISCORD_OWNER_ID = int(config['DISCORD']['OWNER_ID'])
-DISCORD_MBD_ID = int(config['DISCORD']['MBD_ID'])
-DISCORD_REGULAR_ROLE_ID = int(config['DISCORD']['REGULAR_ROLE_ID'])
-DISCORD_MOD_ROLE_ID = int(config['DISCORD']['MOD_ROLE_ID'])
 DISCORD_BOT_SECRET = config['DISCORD']['BOT_SECRET']
+
+MBD_GUILD_ID = int(config['MBD']['GUILD_ID'])
+MBD_REGULAR_ROLE_ID = int(config['MBD']['REGULAR_ROLE_ID'])
+MBD_MOD_ROLE_ID = int(config['MBD']['MOD_ROLE_ID'])
+
+MBD_GRADUATE_ROLE_ID = int(config['MBD']['GRADUATE_ROLE_ID'])
+MBD_SENIOR_ROLE_ID = int(config['MBD']['SENIOR_ROLE_ID'])
+MBD_JUNIOR_ROLE_ID = int(config['MBD']['JUNIOR_ROLE_ID'])
+MBD_SOPHOMORE_ROLE_ID = int(config['MBD']['SOPHOMORE_ROLE_ID'])
+MBD_FRESHMAN_ROLE_ID = int(config['MBD']['FRESHMAN_ROLE_ID'])
+MBD_EIGHTH_GRADER_ROLE_ID = int(config['MBD']['EIGHTH_GRADER_ROLE_ID'])
+MBD_SEVENTH_GRADER_ROLE_ID = int(config['MBD']['SEVENTH_GRADER_ROLE_ID'])
+
+MBD_GRADUATE_CHANNEL_ID = int(config['MBD']['GRADUATE_CHANNEL_ID'])
+MBD_SENIOR_CHANNEL_ID = int(config['MBD']['SENIOR_CHANNEL_ID'])
+MBD_JUNIOR_CHANNEL_ID = int(config['MBD']['JUNIOR_CHANNEL_ID'])
+MBD_SOPHOMORE_CHANNEL_ID = int(config['MBD']['SOPHOMORE_CHANNEL_ID'])
+MBD_FRESHMAN_CHANNEL_ID = int(config['MBD']['FRESHMAN_CHANNEL_ID'])
+MBD_JR_HIGH_CHANNEL_ID = int(config['MBD']['JR_HIGH_CHANNEL_ID'])
 
 mongo = MongoClient(MONGO_DB_URL)
 db = mongo.mbd
@@ -36,12 +54,12 @@ async def on_ready():
 async def reloadRegulars(ctx):
     isOwner = await bot.is_owner(ctx.author);
     if isOwner:
-        currentRegs = ctx.guild.get_role(DISCORD_REGULAR_ROLE_ID).members
+        currentRegs = ctx.guild.get_role(MBD_REGULAR_ROLE_ID).members
         actualRegs = currentRegs
         # This is so stupid but it works so whatever
         for x in range(0, 2):
             for reg in currentRegs:
-                if reg in ctx.guild.get_role(DISCORD_MOD_ROLE_ID).members:
+                if reg in ctx.guild.get_role(MBD_MOD_ROLE_ID).members:
                     actualRegs.remove(reg)
         regsFilter = []
         for member in actualRegs:
@@ -49,18 +67,20 @@ async def reloadRegulars(ctx):
                 db.regulars.insert_one({'discord_id': str(member.id), 'joined_guild_at': member.joined_at})
                 print(f'New Regular Alert! Added {member} ({member.id})!')
             regsFilter.append({'discord_id': {'$eq': str(member.id)}})
-        
+
         for doc in db.regulars.find({'$nor': regsFilter}):
             deleted_reg = db.regulars.find_one_and_delete({'_id': doc['_id']})
             deleted_id = str(deleted_reg['discord_id'])
             print(f'Removed {deleted_id} from the regulars collection')
 
+        await ctx.send('Regulars reloaded!')
+
 @bot.command(name='check-user')
 async def checkuser(ctx, arg1, arg2):
     isOwner = await bot.is_owner(ctx.author);
     if isOwner:
-        print(bot.get_guild(DISCORD_MBD_ID).get_member(int(arg2)))
-        if bot.get_guild(DISCORD_MBD_ID).get_member(int(arg2)) == None:
+        print(bot.get_guild(MBD_GUILD_ID).get_member(int(arg2)))
+        if bot.get_guild(MBD_GUILD_ID).get_member(int(arg2)) == None:
             print(f'Could not find user with ID {arg2}')
             await ctx.send(f'Could not find user with ID {arg2}')
             return
@@ -107,7 +127,7 @@ async def checkRegs(ctx, arg1):
         })
         for document in db.regulars.find({}):
             userID = document['discord_id']
-            discordUser = bot.get_guild(DISCORD_MBD_ID).get_member(int(userID))
+            discordUser = bot.get_guild(MBD_GUILD_ID).get_member(int(userID))
 
             if arg1 == 'all':
                 countDocs = db.messages.count_documents({'user_id': str(userID)})
@@ -176,6 +196,52 @@ async def checkRegs(ctx, arg1):
         worksheet.conditional_format('C2:C' + str(len(df.index)+1), {'type': 'cell', 'criteria': 'less than', 'value': 150, 'format': format2})
         writer.save()
 
+@bot.command(name='graduation-time')
+async def graduation(ctx):
+    isOwner = await bot.is_owner(ctx.author);
+    if isOwner:
+        # Rename role channels
+        # TODO make this more dynamic
+        # jr-high -> Stays the same, no automated action needed
+        # senior -> Rename to class-of-2022
+        # TODO Add automation to move this to the Archive category
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_SENIOR_CHANNEL_ID).edit(name='class-of-2022')
+        # junior -> Rename to senior
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_JUNIOR_CHANNEL_ID).edit(name='senior')
+        # sophomore -> rename to junior
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_SOPHOMORE_CHANNEL_ID).edit(name='junior')
+        # freshman -> rename to sophomore
+        await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_FRESHMAN_CHANNEL_ID).edit(name='sophomore')
+        # MANUAL ACTION -> Create new channel for rising freshmen
+        # TODO make this automated
+        await ctx.send('Renamed channels')
+
+        # Rename roles
+        # TODO make this more dynamic
+        # Junior - 202X -> Senior - 202X
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_JUNIOR_ROLE_ID).edit(name='Senior - 2023')
+        # Sophomore - 202X -> Junior - 202X
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_SOPHOMORE_ROLE_ID).edit(name='Junior - 2024')
+        # Freshman - 202X -> Sophomore - 202X
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_FRESHMAN_ROLE_ID).edit(name='Sophomore - 2025')
+        # 8th Grader - 202X -> Freshman - 202X
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_EIGHTH_GRADER_ROLE_ID).edit(name='Freshmen - 2026')
+        # 7th Grader - 202X -> 8th Grader - 202X
+        await bot.get_guild(MBD_GUILD_ID).get_role(MBD_SEVENTH_GRADER_ROLE_ID).edit(name='8th Grader - 2027')
+        await ctx.send('Renamed roles')
+
+        # Move all Seniors to Graduate role
+        # MANUAL ACTION - Delete the senior role afterwards
+        seniors = ctx.guild.get_role(int(MBD_SENIOR_ROLE_ID)).members
+        graduate_role = ctx.guild.get_role(int(MBD_GRADUATE_ROLE_ID))
+        senior_count = 0
+        for senior in seniors:
+            if graduate_role not in senior.roles:
+                await senior.add_roles(graduate_role)
+                senior_count += 1
+            print(str(senior_count))
+        await ctx.send('Graduated ' + str(senior_count) + ' senior(s)')
+
 @bot.event
 async def on_message(message):
     author = message.author
@@ -184,7 +250,7 @@ async def on_message(message):
     elif author.bot:
         return
 
-    if message.guild.id == DISCORD_MBD_ID:
+    if message.guild.id == MBD_GUILD_ID:
         db.messages.insert_one({"user_id": str(author.id), "message_id": str(message.id), "created_at": message.created_at})
     
     await bot.process_commands(message)
@@ -197,7 +263,7 @@ async def on_message_delete(message):
     elif author.bot:
         return
 
-    if message.guild.id == DISCORD_MBD_ID:
+    if message.guild.id == MBD_GUILD_ID:
         if db.messages.find({'message_id': message.id}) != None:
             db.messages.delete_many({'message_id': message.id})
 
