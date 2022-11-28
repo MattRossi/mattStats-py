@@ -35,6 +35,10 @@ MBD_SOPHOMORE_CHANNEL_ID = int(config['MBD']['SOPHOMORE_CHANNEL_ID'])
 MBD_FRESHMAN_CHANNEL_ID = int(config['MBD']['FRESHMAN_CHANNEL_ID'])
 MBD_JR_HIGH_CHANNEL_ID = int(config['MBD']['JR_HIGH_CHANNEL_ID'])
 
+DCD_GUILD_ID = int(config['DCD']['GUILD_ID'])
+DCD_JON_ROLE_ID = int(config['DCD']['JON_ROLE_ID'])
+DCD_JON_USER_ID = int(config['DCD']['JON_USER_ID'])
+
 mongo = MongoClient(MONGO_DB_URL)
 db = mongo.mbd
 print(db.users.find_one())
@@ -49,6 +53,14 @@ bot = commands.Bot(command_prefix=DISCORD_COMMAND_PREFIX, intents=intents, owner
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
+
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+    if guild.guild.id == DCD_GUILD_ID:
+        if member.id == DCD_JON_USER_ID:
+            role = member.guild.get_role(DCD_JON_ROLE_ID)
+            await member.add_roles(role)
 
 @bot.command(name='reload-regs')
 async def reloadRegulars(ctx):
