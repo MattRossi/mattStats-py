@@ -57,7 +57,7 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
     guild = member.guild
-    if guild.guild.id == DCD_GUILD_ID:
+    if guild.id == DCD_GUILD_ID:
         if member.id == DCD_JON_USER_ID:
             role = member.guild.get_role(DCD_JON_ROLE_ID)
             await member.add_roles(role)
