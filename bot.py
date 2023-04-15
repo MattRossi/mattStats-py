@@ -48,6 +48,7 @@ intents.members = True
 intents.messages = True
 intents.typing = False
 intents.presences = False
+intents.message_content = True
 bot = commands.Bot(command_prefix=DISCORD_COMMAND_PREFIX, intents=intents, owner_id=DISCORD_OWNER_ID)
 
 @bot.event
