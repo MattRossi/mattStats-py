@@ -161,7 +161,7 @@ async def checkRegs(ctx, arg1):
                     nameTime = 'Not Found'
                 else:
                     nameTime = discordUser.name
-                df = df.append({'Username': str(nameTime), 'DiscordID': str(userID), 'MessageCount': int(countDocs)}, ignore_index=True)
+                df = pd.concat([df, pd.DataFrame({'Username': [str(nameTime)], 'DiscordID': [str(userID)], 'MessageCount': [int(countDocs)]})])
             elif arg1 == 'last-month':
                 currentYear = datetime.now().year
                 currentMonth = datetime.now().month
@@ -181,7 +181,7 @@ async def checkRegs(ctx, arg1):
                     nameTime = 'Not Found'
                 else:
                     nameTime = discordUser.name
-                df = df.append({'Username': str(nameTime), 'DiscordID': str(userID), 'MessageCount': int(countDocs)}, ignore_index=True)
+                df = pd.concat([df, pd.DataFrame({'Username': [str(nameTime)], 'DiscordID': [str(userID)], 'MessageCount': [int(countDocs)]})])
         finalMessage = ''
         for line in overallMessage:
             finalMessage += line
@@ -207,7 +207,7 @@ async def checkRegs(ctx, arg1):
         format3.set_num_format(0)
         worksheet.conditional_format('C2:C' + str(len(df.index)+1), {'type': 'cell', 'criteria': 'less than', 'value': '=(((DAY(TODAY())/DAY(EOMONTH(TODAY(),0))))*150)', 'format': format1})
         worksheet.conditional_format('C2:C' + str(len(df.index)+1), {'type': 'cell', 'criteria': 'less than', 'value': 150, 'format': format2})
-        writer.save()
+        writer.close()
 
 @bot.command(name='graduation-time')
 async def graduation(ctx):
