@@ -1,7 +1,7 @@
 from datetime import datetime
 import calendar
-import nextcord
-from nextcord.ext import commands
+import discord
+from discord.ext import commands
 from pymongo import MongoClient
 from pprint import pprint
 import pandas as pd
@@ -43,7 +43,7 @@ mongo = MongoClient(MONGO_DB_URL)
 db = mongo.mbd
 print(db.users.find_one())
 
-intents = nextcord.Intents.default()
+intents = discord.Intents.default()
 intents.members = True
 intents.messages = True
 intents.typing = False
@@ -63,9 +63,9 @@ async def on_member_join(member):
             role = member.guild.get_role(DCD_JON_ROLE_ID)
             await member.add_roles(role)
 
-@bot.command(name='reload-regs')
+@bot.slash_command(name='reloadregulars', description="Reloads the list of Regulars based on the current role's members.")
 async def reloadRegulars(ctx):
-    isOwner = await bot.is_owner(ctx.author);
+    isOwner = await bot.is_owner(ctx.author)
     if isOwner:
         currentRegs = ctx.guild.get_role(MBD_REGULAR_ROLE_ID).members
         actualRegs = currentRegs
@@ -86,32 +86,32 @@ async def reloadRegulars(ctx):
             deleted_id = str(deleted_reg['discord_id'])
             print(f'Removed {deleted_id} from the regulars collection')
 
-        await ctx.send('Regulars reloaded!')
+        await ctx.respond('Regulars reloaded!')
 
-@bot.command(name='check-user')
-async def checkuser(ctx, arg1, arg2):
-    isOwner = await bot.is_owner(ctx.author);
+@bot.slash_command(name='checkuser', description="Checks for a user's message count.")
+async def checkuser(ctx, timelength: discord.Option(str, choices=['all', 'this-month', 'last-month']), userid: discord.Option(str)):
+    isOwner = await bot.is_owner(ctx.author)
     if isOwner:
-        print(bot.get_guild(MBD_GUILD_ID).get_member(int(arg2)))
-        if bot.get_guild(MBD_GUILD_ID).get_member(int(arg2)) == None:
-            print(f'Could not find user with ID {arg2}')
-            await ctx.send(f'Could not find user with ID {arg2}')
+        print(bot.get_guild(MBD_GUILD_ID).get_member(int(userid)))
+        if bot.get_guild(MBD_GUILD_ID).get_member(int(userid)) == None:
+            print(f'Could not find user with ID {userid}')
+            await ctx.respond(f'Could not find user with ID {userid}')
             return
 
-        if arg1 == 'all':
-            countDocs = db.messages.count_documents({'user_id': str(arg2)})
-            print(f'Number of messages (all-time) by {arg2}: {countDocs}')
-            await ctx.send(f'Number of messages (all-time) by {arg2}: {countDocs}')
+        if timelength == 'all':
+            countDocs = db.messages.count_documents({'user_id': str(userid)})
+            print(f'Number of messages (all-time) by {userid}: {countDocs}')
+            await ctx.respond(f'Number of messages (all-time) by {userid}: {countDocs}')
             return
-        elif arg1 == 'this-month':
+        elif timelength == 'this-month':
             currentYear = datetime.now().year
             currentMonth = datetime.now().month
             lastDay = calendar.monthrange(datetime.now().year, datetime.now().month)[1]
-            countDocs = db.messages.count_documents({'user_id': str(arg2), 'created_at': {'$gte': datetime(currentYear, currentMonth, 1), '$lt': datetime(currentYear, currentMonth, lastDay)}})
-            print(f'Number of messages (current month) by {arg2}: {countDocs}')
-            await ctx.send(f'Number of messages (current month) by {arg2}: {countDocs}')
+            countDocs = db.messages.count_documents({'user_id': str(userid), 'created_at': {'$gte': datetime(currentYear, currentMonth, 1), '$lt': datetime(currentYear, currentMonth, lastDay)}})
+            print(f'Number of messages (current month) by {userid}: {countDocs}')
+            await ctx.respond(f'Number of messages (current month) by {userid}: {countDocs}')
             return
-        elif arg1 == 'last-month':
+        elif timelength == 'last-month':
             currentYear = datetime.now().year
             currentMonth = datetime.now().month
             lastMonth = 0
@@ -123,14 +123,14 @@ async def checkuser(ctx, arg1, arg2):
                 lastMonth = currentMonth - 1
                 lastMonthsYear = currentYear
             lastDay = calendar.monthrange(lastMonthsYear, lastMonth)[1]
-            countDocs = db.messages.count_documents({'user_id': str(arg2), 'created_at': {'$gte': datetime(lastMonthsYear, lastMonth, 1), '$lt': datetime(lastMonthsYear, lastMonth, lastDay)}})
-            print(f'Number of messages (last month) by {arg2}: {countDocs}')
-            await ctx.send(f'Number of messages (last month) by {arg2}: {countDocs}')
+            countDocs = db.messages.count_documents({'user_id': str(userid), 'created_at': {'$gte': datetime(lastMonthsYear, lastMonth, 1), '$lt': datetime(lastMonthsYear, lastMonth, lastDay)}})
+            print(f'Number of messages (last month) by {userid}: {countDocs}')
+            await ctx.respond(f'Number of messages (last month) by {userid}: {countDocs}')
             return
 
-@bot.command(name='check-regulars')
-async def checkRegs(ctx, arg1):
-    isOwner = await bot.is_owner(ctx.author);
+@bot.slash_command(name='checkregulars', description="Checks for all of the current Regular member message counts.")
+async def checkRegs(ctx, timelength: discord.Option(str, choices=['all', 'this-month', 'last-month'])):
+    isOwner = await bot.is_owner(ctx.author)
     if isOwner:
         overallMessage = []
         df = pd.DataFrame({
@@ -142,7 +142,7 @@ async def checkRegs(ctx, arg1):
             userID = document['discord_id']
             discordUser = bot.get_guild(MBD_GUILD_ID).get_member(int(userID))
 
-            if arg1 == 'all':
+            if timelength == 'all':
                 countDocs = db.messages.count_documents({'user_id': str(userID)})
                 nameTime = 'Not Found'
                 if (discordUser == None):
@@ -150,7 +150,7 @@ async def checkRegs(ctx, arg1):
                 else:
                     nameTime = discordUser.name
                 overallMessage.append(f'Number of messages (all-time) by {nameTime} ({userID}): {countDocs} \n')
-            elif arg1 == 'this-month':
+            elif timelength == 'this-month':
                 currentYear = datetime.now().year
                 currentMonth = datetime.now().month
                 lastDay = calendar.monthrange(datetime.now().year, datetime.now().month)[1]
@@ -162,7 +162,7 @@ async def checkRegs(ctx, arg1):
                 else:
                     nameTime = discordUser.name
                 df = pd.concat([df, pd.DataFrame({'Username': [str(nameTime)], 'DiscordID': [str(userID)], 'MessageCount': [int(countDocs)]})])
-            elif arg1 == 'last-month':
+            elif timelength == 'last-month':
                 currentYear = datetime.now().year
                 currentMonth = datetime.now().month
                 lastMonth = 0
@@ -186,10 +186,10 @@ async def checkRegs(ctx, arg1):
         for line in overallMessage:
             finalMessage += line
             if len(finalMessage) >= 1750:
-                await ctx.send(finalMessage)
+                await ctx.respond(finalMessage)
                 finalMessage = ''
         if finalMessage:
-            await ctx.send(finalMessage)
+            await ctx.respond(finalMessage)
         df = df.sort_values('Username', key=lambda x: x.str.lower()).reset_index(drop=True)
         df.DiscordID = df.DiscordID.astype('string')
         print(df)
@@ -209,9 +209,9 @@ async def checkRegs(ctx, arg1):
         worksheet.conditional_format('C2:C' + str(len(df.index)+1), {'type': 'cell', 'criteria': 'less than', 'value': 150, 'format': format2})
         writer.close()
 
-@bot.command(name='graduation-time')
+@bot.slash_command(name='graduationtime', description="Graduates all of the Seniors and moves all of the other roles up a year.")
 async def graduation(ctx):
-    isOwner = await bot.is_owner(ctx.author);
+    isOwner = await bot.is_owner(ctx.author)
     if isOwner:
         # Rename role channels
         # TODO make this more dynamic
@@ -227,7 +227,7 @@ async def graduation(ctx):
         await bot.get_guild(MBD_GUILD_ID).get_channel(MBD_FRESHMAN_CHANNEL_ID).edit(name='sophomore')
         # MANUAL ACTION -> Create new channel for rising freshmen
         # TODO make this automated
-        await ctx.send('Renamed channels')
+        await ctx.respond('Renamed channels')
 
         # Rename roles
         # TODO make this more dynamic
@@ -241,7 +241,7 @@ async def graduation(ctx):
         await bot.get_guild(MBD_GUILD_ID).get_role(MBD_EIGHTH_GRADER_ROLE_ID).edit(name='Freshmen - 2026')
         # 7th Grader - 202X -> 8th Grader - 202X
         await bot.get_guild(MBD_GUILD_ID).get_role(MBD_SEVENTH_GRADER_ROLE_ID).edit(name='8th Grader - 2027')
-        await ctx.send('Renamed roles')
+        await ctx.respond('Renamed roles')
 
         # Move all Seniors to Graduate role
         # MANUAL ACTION - Delete the senior role afterwards
@@ -253,7 +253,7 @@ async def graduation(ctx):
                 await senior.add_roles(graduate_role)
                 senior_count += 1
             print(str(senior_count))
-        await ctx.send('Graduated ' + str(senior_count) + ' senior(s)')
+        await ctx.respond('Graduated ' + str(senior_count) + ' senior(s)')
 
 @bot.event
 async def on_message(message):
