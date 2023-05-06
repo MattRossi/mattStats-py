@@ -67,6 +67,7 @@ async def on_member_join(member):
 async def reloadRegulars(ctx):
     isOwner = await bot.is_owner(ctx.author)
     if isOwner:
+        await ctx.defer()
         currentRegs = ctx.guild.get_role(MBD_REGULAR_ROLE_ID).members
         actualRegs = currentRegs
         # This is so stupid but it works so whatever
@@ -92,6 +93,7 @@ async def reloadRegulars(ctx):
 async def checkuser(ctx, timelength: discord.Option(str, choices=['all', 'this-month', 'last-month']), userid: discord.Option(str)):
     isOwner = await bot.is_owner(ctx.author)
     if isOwner:
+        await ctx.defer()
         print(bot.get_guild(MBD_GUILD_ID).get_member(int(userid)))
         if bot.get_guild(MBD_GUILD_ID).get_member(int(userid)) == None:
             print(f'Could not find user with ID {userid}')
@@ -132,6 +134,7 @@ async def checkuser(ctx, timelength: discord.Option(str, choices=['all', 'this-m
 async def checkRegs(ctx, timelength: discord.Option(str, choices=['all', 'this-month', 'last-month'])):
     isOwner = await bot.is_owner(ctx.author)
     if isOwner:
+        await ctx.defer()
         overallMessage = []
         df = pd.DataFrame({
             'Username': [],
@@ -213,6 +216,7 @@ async def checkRegs(ctx, timelength: discord.Option(str, choices=['all', 'this-m
 async def graduation(ctx):
     isOwner = await bot.is_owner(ctx.author)
     if isOwner:
+        await ctx.defer()
         # Rename role channels
         # TODO make this more dynamic
         # jr-high -> Stays the same, no automated action needed
