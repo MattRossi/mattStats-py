@@ -1,4 +1,4 @@
 config.properties
-regulars.xlsx
+*.xlsx
 /__pycache__
 env
