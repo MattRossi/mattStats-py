@@ -126,8 +126,8 @@ async def check_user(ctx: ApplicationContext, time_length: str, user: discord.Us
                     '$gte': datetime(current_year, current_month, 1),
                     '$lt': datetime(current_year, current_month, last_day)}})
         print(f'Number of messages (current month) by {user} ({user.id}): {count_docs}')
-        await ctx.respond(f'Number of messages (current month) by {user} ({user.id}): \
-                            {count_docs}')
+        await ctx.respond(f'Number of messages (current month) by {user} ({user.id}): '
+                          f'{count_docs}')
         return
     elif time_length == 'last-month':
         current_year = datetime.now().year
@@ -147,14 +147,14 @@ async def check_user(ctx: ApplicationContext, time_length: str, user: discord.Us
                 '$gte': datetime(last_months_year, last_month, 1),
                 '$lt': datetime(last_months_year, last_month, last_day)}})
         print(f'Number of messages (last month) by {user} ({user.id}): {count_docs}')
-        await ctx.respond(f'Number of messages (last month) by {user} ({user.id}): \
-                            {count_docs}')
+        await ctx.respond(f'Number of messages (last month) by {user} ({user.id}): '
+                          f'{count_docs}')
         return
 
 @bot.slash_command(name='checkregulars',
                    description="Checks for all of the current Regular member message counts.")
 @discord.commands.option('length', type=str,
-                         choices=[OptionChoice(name='All Time', value='all-time'),
+                         choices=[OptionChoice(name='All Time', value='all'),
                                   OptionChoice(name='This Month', value='this-month'),
                                   OptionChoice(name='Last Month', value='last-month')],
                          parameter_name='time_length',
@@ -203,8 +203,9 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
                 query.update({'channel_id': {'$not': { '$eq': str(exclude_channel.id)}}})
             count_docs = db.messages.count_documents(query)
             overall_message.append(
-                f'Number of messages (current month) by {discord_user} ({user_id}): \
-                {count_docs} \n')
+                f'Number of messages '
+                f'(current month) by {discord_user} ({user_id}): '
+                f'{count_docs} \n')
             name_time = 'Not Found'
             if discord_user is None:
                 name_time = 'Not Found'
@@ -233,8 +234,8 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
             if exclude_channel:
                 query.update({'channel_id': {'$not': { '$eq': str(exclude_channel.id)}}})
             count_docs = db.messages.count_documents(query)
-            overall_message.append(f'Number of messages (last month) by {discord_user} \
-                                    ({user_id}): {count_docs} \n')
+            overall_message.append(f'Number of messages (last month) by {discord_user} '
+                                   f'({user_id}): {count_docs} \n')
             name_time = 'Not Found'
             if discord_user is None:
                 name_time = 'Not Found'
@@ -244,40 +245,41 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
                 {'Username': [str(name_time)],
                     'DiscordID': [str(user_id)],
                     'MessageCount': [int(count_docs)]})])
-    final_message = ''
+    final_message = '```'
     for line in overall_message:
         final_message += line
         if len(final_message) >= 1750:
-            await ctx.respond(final_message)
-            final_message = ''
-    if final_message:
-        await ctx.respond(final_message)
-    df = df.sort_values('Username', key=lambda x: x.str.lower()).reset_index(drop=True)
-    df.DiscordID = df.DiscordID.astype('string')
-    print(df)
-    writer = pd.ExcelWriter("regulars.xlsx", engine='xlsxwriter')
-    df.to_excel(writer, sheet_name="regulars", index=False)
-    workbook = writer.book
-    worksheet = writer.sheets['regulars']
-    format1 = workbook.add_format()
-    format1.set_underline()
-    format1.set_bold()
-    format1.set_bg_color('red')
-    format2 = workbook.add_format()
-    format2.set_bg_color('red')
-    format3 = workbook.add_format()
-    format3.set_num_format(0)
-    worksheet.conditional_format('C2:C' + str(len(df.index)+1), {
-        'type': 'cell',
-        'criteria': 'less than',
-        'value': '=(((DAY(TODAY())/DAY(EOMONTH(TODAY(),0))))*150)',
-        'format': format1})
-    worksheet.conditional_format('C2:C' + str(len(df.index)+1), {
-        'type': 'cell',
-        'criteria': 'less than',
-        'value': 150,
-        'format': format2})
-    writer.close()
+            await ctx.respond(final_message + '```')
+            final_message = '```'
+    if final_message != '```':
+        await ctx.respond(final_message + '```')
+    if time_length in ['this-month', 'last-month']:
+        df = df.sort_values('Username', key=lambda x: x.str.lower()).reset_index(drop=True)
+        df.DiscordID = df.DiscordID.astype('string')
+        print(df)
+        writer = pd.ExcelWriter("regulars.xlsx", engine='xlsxwriter')
+        df.to_excel(writer, sheet_name="regulars", index=False)
+        workbook = writer.book
+        worksheet = writer.sheets['regulars']
+        format1 = workbook.add_format()
+        format1.set_underline()
+        format1.set_bold()
+        format1.set_bg_color('red')
+        format2 = workbook.add_format()
+        format2.set_bg_color('red')
+        format3 = workbook.add_format()
+        format3.set_num_format(0)
+        worksheet.conditional_format('C2:C' + str(len(df.index)+1), {
+            'type': 'cell',
+            'criteria': 'less than',
+            'value': '=(((DAY(TODAY())/DAY(EOMONTH(TODAY(),0))))*150)',
+            'format': format1})
+        worksheet.conditional_format('C2:C' + str(len(df.index)+1), {
+            'type': 'cell',
+            'criteria': 'less than',
+            'value': 150,
+            'format': format2})
+        writer.close()
 
 @bot.slash_command(name='graduationtime',
                    description="Graduates all of the Seniors and moves all of the other roles \
@@ -361,7 +363,7 @@ async def on_message_delete(message: discord.Message):
             if db.messages.delete_one({"message_id": str(message.id)}).deleted_count == 0:
                 print(f"Unable to delete message from database with message ID '{str(message.id)}'")
         else:
-            print(f"Unable to find message in database to delete with message ID \
-                  '{str(message.id)}'")
+            print(f"Unable to find message in database to delete with message ID "
+                  f"'{str(message.id)}'")
 
 bot.run(DISCORD_BOT_SECRET)
