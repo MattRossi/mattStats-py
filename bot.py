@@ -7,6 +7,7 @@ from discord.ext import commands
 from pymongo import MongoClient
 from pymongo.database import Database
 import pandas as pd
+from xlsxwriter.workbook import Workbook, Worksheet
 
 config = configparser.ConfigParser()
 config.read('config.properties')
@@ -18,6 +19,7 @@ DISCORD_OWNER_ID = int(config['DISCORD']['OWNER_ID'])
 DISCORD_BOT_SECRET = config['DISCORD']['BOT_SECRET']
 
 MBD_GUILD_ID = int(config['MBD']['GUILD_ID'])
+MBD_BOOSTER_NAME = config['MBD']['BOOSTER']
 
 MBD_GRADUATE_ROLE_ID = int(config['MBD']['GRADUATE_ROLE_ID'])
 MBD_SENIOR_ROLE_ID = int(config['MBD']['SENIOR_ROLE_ID'])
@@ -35,6 +37,7 @@ MBD_FRESHMAN_CHANNEL_ID = int(config['MBD']['FRESHMAN_CHANNEL_ID'])
 MBD_JR_HIGH_CHANNEL_ID = int(config['MBD']['JR_HIGH_CHANNEL_ID'])
 
 DCD_GUILD_ID = int(config['DCD']['GUILD_ID'])
+DCD_BOOSTER_NAME = config['DCD']['BOOSTER']
 
 mongo = MongoClient(MONGO_DB_URL)
 
@@ -43,6 +46,13 @@ def which_database(guild: discord.Guild) -> Database:
         return mongo.mbd
     if guild.id == DCD_GUILD_ID:
         return mongo.dcd
+    return None
+
+def which_booster(guild: discord.Guild) -> str:
+    if guild.id == MBD_GUILD_ID:
+        return MBD_BOOSTER_NAME
+    if guild.id == DCD_GUILD_ID:
+        return DCD_BOOSTER_NAME
     return None
 
 intents = discord.Intents.default()
@@ -75,6 +85,10 @@ async def reload_regulars(ctx: ApplicationContext):
     for _ in range(0, 2):
         for reg in current_regs:
             if reg in utils.get(ctx.guild.roles, name='Server Mods').members:
+                actual_regs.remove(reg)
+    for _ in range(0, 2):
+        for reg in current_regs:
+            if reg in utils.get(ctx.guild.roles, name='Mod Team Alumni').members:
                 actual_regs.remove(reg)
     regs_filter = []
     for member in actual_regs:
@@ -114,19 +128,20 @@ async def check_user(ctx: ApplicationContext, time_length: str, user: discord.Us
     if time_length == 'all':
         count_docs = db.messages.count_documents({'user_id': str(user.id)})
         print(f'Number of messages (all-time) by {user} ({user.id}): {count_docs}')
-        await ctx.respond(f'Number of messages (all-time) by {user} ({user.id}): {count_docs}')
+        await ctx.respond(f'Number of messages (all-time) by <@{user.id}> ({user.id}): '
+                          f'{count_docs}')
         return
     elif time_length == 'this-month':
         current_year = datetime.now().year
         current_month = datetime.now().month
         last_day = calendar.monthrange(datetime.now().year, datetime.now().month)[1]
         count_docs = db.messages.count_documents(
-            {'user_id': str(user),
+            {'user_id': str(user.id),
                 'created_at': {
                     '$gte': datetime(current_year, current_month, 1),
                     '$lt': datetime(current_year, current_month, last_day)}})
         print(f'Number of messages (current month) by {user} ({user.id}): {count_docs}')
-        await ctx.respond(f'Number of messages (current month) by {user} ({user.id}): '
+        await ctx.respond(f'Number of messages (current month) by <@{user.id}> ({user.id}): '
                           f'{count_docs}')
         return
     elif time_length == 'last-month':
@@ -142,12 +157,12 @@ async def check_user(ctx: ApplicationContext, time_length: str, user: discord.Us
             last_months_year = current_year
         last_day = calendar.monthrange(last_months_year, last_month)[1]
         count_docs = db.messages.count_documents({
-            'user_id': str(user),
+            'user_id': str(user.id),
             'created_at': {
                 '$gte': datetime(last_months_year, last_month, 1),
                 '$lt': datetime(last_months_year, last_month, last_day)}})
         print(f'Number of messages (last month) by {user} ({user.id}): {count_docs}')
-        await ctx.respond(f'Number of messages (last month) by {user} ({user.id}): '
+        await ctx.respond(f'Number of messages (last month) by <@{user.id}> ({user.id}): '
                           f'{count_docs}')
         return
 
@@ -172,8 +187,8 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
     overall_message = []
     df = pd.DataFrame({
         'Username': [],
-        'DiscordID': [],
-        'MessageCount': []
+        'Message Count': [],
+        'Discord ID': []
     })
     for document in db.regulars.find({}):
         user_id = document['discord_id']
@@ -190,7 +205,7 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
             else:
                 name_time = discord_user.name
             overall_message.append(
-                f'Number of messages (all-time) by {name_time} ({user_id}): {count_docs} \n')
+                f'Number of messages (all-time) by <@{user_id}> ({user_id}): {count_docs} \n')
         elif time_length == 'this-month':
             current_year = datetime.now().year
             current_month = datetime.now().month
@@ -204,8 +219,7 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
             count_docs = db.messages.count_documents(query)
             overall_message.append(
                 f'Number of messages '
-                f'(current month) by {discord_user} ({user_id}): '
-                f'{count_docs} \n')
+                f'(current month) by <@{user_id}> ({user_id}): {count_docs} \n')
             name_time = 'Not Found'
             if discord_user is None:
                 name_time = 'Not Found'
@@ -213,8 +227,8 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
                 name_time = discord_user.name
             df = pd.concat([df, pd.DataFrame(
                 {'Username': [str(name_time)],
-                    'DiscordID': [str(user_id)],
-                    'MessageCount': [int(count_docs)]})])
+                    'Message Count': [int(count_docs)],
+                    'Discord ID': [str(user_id)]})])
         elif time_length == 'last-month':
             current_year = datetime.now().year
             current_month = datetime.now().month
@@ -234,7 +248,7 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
             if exclude_channel:
                 query.update({'channel_id': {'$not': { '$eq': str(exclude_channel.id)}}})
             count_docs = db.messages.count_documents(query)
-            overall_message.append(f'Number of messages (last month) by {discord_user} '
+            overall_message.append(f'Number of messages (last month) by <@{user_id}> '
                                    f'({user_id}): {count_docs} \n')
             name_time = 'Not Found'
             if discord_user is None:
@@ -243,43 +257,62 @@ async def check_regs(ctx: ApplicationContext, time_length: str,
                 name_time = discord_user.name
             df = pd.concat([df, pd.DataFrame(
                 {'Username': [str(name_time)],
-                    'DiscordID': [str(user_id)],
-                    'MessageCount': [int(count_docs)]})])
-    final_message = '```'
+                    'Message Count': [int(count_docs)],
+                    'Discord ID': [str(user_id)]})])
+    final_message = ''
     for line in overall_message:
         final_message += line
         if len(final_message) >= 1750:
-            await ctx.respond(final_message + '```')
-            final_message = '```'
-    if final_message != '```':
-        await ctx.respond(final_message + '```')
+            await ctx.respond(final_message)
+            final_message = ''
+    if final_message:
+        await ctx.respond(final_message)
     if time_length in ['this-month', 'last-month']:
         df = df.sort_values('Username', key=lambda x: x.str.lower()).reset_index(drop=True)
-        df.DiscordID = df.DiscordID.astype('string')
+        df['Discord ID'] = df['Discord ID'].astype('string')
         print(df)
         writer = pd.ExcelWriter("regulars.xlsx", engine='xlsxwriter')
         df.to_excel(writer, sheet_name="regulars", index=False)
-        workbook = writer.book
-        worksheet = writer.sheets['regulars']
+        workbook: Workbook = writer.book
+        worksheet: Worksheet = writer.sheets['regulars']
+        for i, col in enumerate(df.columns):
+            max_len = max(df[col].astype(str).map(len).max(), len(col))
+            worksheet.set_column(i, i, max_len + 2)  # Adding a buffer for padding
         format1 = workbook.add_format()
         format1.set_underline()
         format1.set_bold()
-        format1.set_bg_color('red')
+        format1.set_bg_color('#FF5757') # rose
         format2 = workbook.add_format()
-        format2.set_bg_color('red')
+        format2.set_bg_color('#FF5757') # rose
         format3 = workbook.add_format()
-        format3.set_num_format(0)
-        worksheet.conditional_format('C2:C' + str(len(df.index)+1), {
+        format3.set_bg_color('#00FF00') # green
+        format4 = workbook.add_format()
+        format4.set_bg_color('#F47FFF') # pink
+        worksheet.conditional_format('B2:B' + str(len(df.index)+1), {
             'type': 'cell',
             'criteria': 'less than',
             'value': '=(((DAY(TODAY())/DAY(EOMONTH(TODAY(),0))))*150)',
             'format': format1})
-        worksheet.conditional_format('C2:C' + str(len(df.index)+1), {
+        worksheet.conditional_format('B2:B' + str(len(df.index)+1), {
             'type': 'cell',
             'criteria': 'less than',
             'value': 150,
             'format': format2})
+        worksheet.conditional_format('A2:A' + str(len(df.index)+1), {
+            'type': 'formula',
+            'criteria': 'B2>150',
+            'format': format3})
+        booster_role_name: str = which_booster(ctx.guild)
+        if booster_role_name is not None:
+            boosters = [boost.name for boost in
+                        utils.get(ctx.guild.roles, name=booster_role_name).members
+                        if boost.name in df['Username'].tolist()]
+            worksheet.conditional_format('A2:A' + str(len(df.index)+1), {
+                'type': 'formula',
+                'criteria': '=ISNUMBER(SEARCH(A2, "' + ', '.join([s for s in boosters]) + '"))',
+                'format': format4})
         writer.close()
+        await ctx.respond(file=discord.File('regulars.xlsx'))
 
 @bot.slash_command(name='graduationtime',
                    description="Graduates all of the Seniors and moves all of the other roles \
